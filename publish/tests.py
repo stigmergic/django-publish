@@ -1,19 +1,20 @@
 from django.conf import settings
- 
+from django.test.client import RequestFactory
+
 if getattr(settings, 'TESTING_PUBLISH', False):
     import unittest
     from django.test import TransactionTestCase
     from django.contrib.admin.sites import AdminSite
     from django.contrib.auth.models import User
     from django.forms.models import ModelChoiceField, ModelMultipleChoiceField
-    from django.conf.urls.defaults import *
+    from django.conf.urls import patterns, include
     from django.core.exceptions import PermissionDenied
     from django.http import Http404
-    
+
     from publish.models import Publishable, FlatPage, Site, Page, PageBlock, \
                                Author, AuthorProfile, Tag, PageTagOrder, Comment, update_pub_date, \
                                PublishException, UnpublishException
-                               
+
     from publish.admin import PublishableAdmin, PublishableStackedInline
     from publish.actions import publish_selected, unpublish_selected, delete_selected, \
                                 _convert_all_published_to_html, undelete_selected
@@ -21,7 +22,6 @@ if getattr(settings, 'TESTING_PUBLISH', False):
     from publish.signals import pre_publish, post_publish
     from publish.filters import PublishableRelatedFieldListFilter
 
-    
     def _get_rendered_content(response):
         content = getattr(response, 'rendered_content', None)
         if content is not None:
@@ -289,8 +289,8 @@ if getattr(settings, 'TESTING_PUBLISH', False):
         
         def setUp(self):
             super(TransactionTestCase, self).setUp()
-            self.flat_page1 = FlatPage.objects.create(url='/url1/', title='title 1')
-            self.flat_page2 = FlatPage.objects.create(url='/url2/', title='title 2')
+            self.flat_page1 = FlatPage.objects.create(url='/url1/', title='title 1', enable_comments=False, registration_required=False)
+            self.flat_page2 = FlatPage.objects.create(url='/url2/', title='title 2', enable_comments=False, registration_required=False)
         
         def test_all(self): 
             self.failUnlessEqual([self.flat_page1, self.flat_page2], list(FlatPage.objects.all()))
@@ -771,7 +771,11 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.author2.publish()
 
             self.admin_site = AdminSite('Test Admin')
-            
+            self.user = User.objects.create_user('test2', 'test2@example.com', 'jkljkl')
+            self.user.is_staff = True
+            self.user.is_superuser = True
+            self.user.save()
+
             class PageBlockInline(PublishableStackedInline):
                 model = PageBlock
 
@@ -908,54 +912,21 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.failUnless(self.page_admin.has_delete_permission(dummy_request))
             self.failUnless(self.page_admin.has_delete_permission(dummy_request, self.page1))
             self.failIf(self.page_admin.has_delete_permission(dummy_request, self.page1.public))
-        
+
         def test_change_view_normal(self):
-            class dummy_request(object):
-                method = 'GET'
-                REQUEST = {}
-                COOKIES = {}
-                META = {}
-                
-                @classmethod
-                def is_ajax(cls):
-                    return False
+            rf = RequestFactory()
+            dummy_request = rf.get('/')
+            dummy_request.user = self.user
 
-                @classmethod
-                def is_secure(cls):
-                    return False 
-
-                class user(object):
-                    @classmethod
-                    def has_perm(cls, permission):
-                        return True
-
-                    @classmethod
-                    def get_and_delete_messages(cls):
-                        return []
-            
             response = self.page_admin.change_view(dummy_request, str(self.page1.id))
             self.failUnless(response is not None)
             self.failIf('deleted' in _get_rendered_content(response))
-        
+
         def test_change_view_not_deleted(self):
-            class dummy_request(object):
-                method = 'GET'
-                COOKIES = {}
-                META = {}
-                
-                @classmethod
-                def is_ajax(cls):
-                    return False
+            rf = RequestFactory()
+            dummy_request = rf.get('/')
+            dummy_request.user = self.user
 
-                @classmethod
-                def is_secure(cls):
-                    return False
-
-                class user(object):
-                    @classmethod
-                    def has_perm(cls, permission):
-                        return True
-            
             response = self.page_admin.change_view(dummy_request, unicode(self.page1.public.id))
             # should be redirecting to the draft version
             self.failUnless(response is not None)
@@ -963,29 +934,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.assertEquals('/admin/publish/page/%d/' % self.page1.id, response['Location'])
 
         def test_change_view_deleted(self):
-            class dummy_request(object):
-                method = 'GET'
-                REQUEST = {}
-                COOKIES = {}
-                META = {}
-                
-                @classmethod
-                def is_ajax(cls):
-                    return False
-
-                @classmethod
-                def is_secure(cls):
-                    return False
-
-                class user(object):
-                    @classmethod
-                    def has_perm(cls, permission):
-                        return True
-                    
-                    @classmethod
-                    def get_and_delete_messages(cls):
-                        return []
-            
+            rf = RequestFactory()
+            dummy_request = rf.get('/')
+            dummy_request.user = self.user
             self.page1.delete()
 
             response = self.page_admin.change_view(dummy_request, str(self.page1.id))
@@ -993,20 +944,10 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.failUnless('deleted' in _get_rendered_content(response))
 
         def test_change_view_deleted_POST(self):
-            class dummy_request(object):
-                csrf_processing_done = True # stop csrf check
-                method = 'POST'
-                COOKIES = {}
-                META = {}
-                
-                @classmethod
-                def is_ajax(cls):
-                    return False
+            rf = RequestFactory()
+            dummy_request = rf.get('/')
+            dummy_request.user = self.user
 
-                @classmethod
-                def is_secure(cls):
-                    return False
-                        
             self.page1.delete()
 
             try:
@@ -1023,7 +964,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             user1 = User.objects.create_user('test1', 'test@example.com', 'jkljkl')
  
             # fake selecting the delete tickbox for the block            
-            
+            """
             class dummy_request(object):
                 csrf_processing_done = True
                 method = 'POST'
@@ -1077,8 +1018,21 @@ if getattr(settings, 'TESTING_PUBLISH', False):
                     @classmethod
                     def add(cls, *message):
                         pass
-                    
-            
+            """
+            rf = RequestFactory()
+            dummy_request = rf.post('/', {
+                'slug': page1.slug,
+                'title': page1.title,
+                'content': page1.content,
+                'pub_date_0': '2010-02-12',
+                'pub_date_1': '17:40:00',
+                'pageblock_set-TOTAL_FORMS': '2',
+                'pageblock_set-INITIAL_FORMS': '1',
+                'pageblock_set-0-id': str(block.id),
+                'pageblock_set-0-page': str(page1.id),
+                'pageblock_set-0-DELETE': 'yes'
+            })
+
             block = PageBlock.objects.get(id=block.id)
             public_block = block.public
 
@@ -1087,10 +1041,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
 
             # the block should have been deleted (but not the public one)
             self.failUnlessEqual([public_block], list(PageBlock.objects.all()))
-            
-     
+
     class TestPublishSelectedAction(TransactionTestCase):
-        
+
         def setUp(self):
             super(TestPublishSelectedAction, self).setUp()
             self.fp1 = Page.objects.create(slug='fp1', title='FP1')
@@ -1099,7 +1052,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
 
             self.admin_site = AdminSite('Test Admin')
             self.page_admin = PublishableAdmin(Page, self.admin_site)
-            
+            self.user = User.objects.create_user('test1', 'test@example.com', 'jkljkl')
             # override urls, so reverse works
             settings.ROOT_URLCONF=patterns('',
                 ('^admin/', include(self.admin_site.urls)),
@@ -1129,7 +1082,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
 
         def test_publish_selected_confirmed(self):
             pages = Page.objects.exclude(id=self.fp3.id)
-            
+            """
             class dummy_request(object):
                 POST = {'post': True}
 
@@ -1141,7 +1094,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
                     @classmethod
                     def has_perm(cls, *arg):
                         return True
-        
+
                     class message_set(object):
                         @classmethod
                         def create(cls, message=None):
@@ -1151,10 +1104,13 @@ if getattr(settings, 'TESTING_PUBLISH', False):
                     @classmethod
                     def add(cls, *message):
                         self._message = message
-                    
+            """
+
+            rf = RequestFactory()
+            dummy_request = rf.post('/', {})
 
             response = publish_selected(self.page_admin, dummy_request, pages)
-                        
+
 
             self.failUnlessEqual(2, Page.objects.published().count())
             self.failUnless( getattr(self, '_message', None) is not None )
@@ -1180,19 +1136,23 @@ if getattr(settings, 'TESTING_PUBLISH', False):
         def test_publish_selected_does_not_have_permission(self):
             self.admin_site.register(Page, PublishableAdmin)
             pages = Page.objects.exclude(id=self.fp3.id)
-            
+            """
             class dummy_request(object):
                 POST = {}
 
                 class user(object):
                     @classmethod
                     def has_perm(cls, *arg):
-                        return False 
+                        return False
 
                     @classmethod
                     def get_and_delete_messages(cls):
                         return []
-            
+            """
+            rf = RequestFactory()
+            dummy_request = rf.post('/', {})
+            dummy_request.user = self.user
+
             response = publish_selected(self.page_admin, dummy_request, pages)
             self.failIf(response is None)
             # publish button should not be in response
@@ -1211,7 +1171,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.fp1.authors.add(author)
 
             pages = Page.objects.draft()
-
+            """
             class dummy_request(object):
                 POST = { 'post': True }
 
@@ -1225,13 +1185,16 @@ if getattr(settings, 'TESTING_PUBLISH', False):
                     @classmethod
                     def has_perm(cls, perm):
                         return perm != 'publish.publish_author'
-            
+            """
+            rf = RequestFactory()
+            dummy_request = rf.post('/', {'post': True})
+            dummy_request.user = self.user
             try:
                 publish_selected(self.page_admin, dummy_request, pages)
                 self.fail()
             except PermissionDenied:
                 pass
-            
+
             self.failIf(Page.objects.published().count() > 0)
 
         def test_publish_selected_logs_publication(self):
@@ -1292,6 +1255,8 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.admin_site = AdminSite('Test Admin')
             self.page_admin = PublishableAdmin(Page, self.admin_site)
 
+            self.user = User.objects.create_user('test1', 'test@example.com', 'jkljkl')
+
             # override urls, so reverse works
             settings.ROOT_URLCONF=patterns('',
                 ('^admin/', include(self.admin_site.urls)),
@@ -1300,25 +1265,15 @@ if getattr(settings, 'TESTING_PUBLISH', False):
         def test_unpublish_selected_confirm(self):
             pages = Page.objects.draft()
 
-            class dummy_request(object):
-                META = {}
-                POST = {}
-
-                class user(object):
-                    @classmethod
-                    def has_perm(cls, *arg):
-                        return True
-
-                    @classmethod
-                    def get_and_delete_messages(cls):
-                        return []
+            rf = RequestFactory()
+            dummy_request = rf.post('/', {})
+            dummy_request.user = self.user
 
             response = unpublish_selected(self.page_admin, dummy_request, pages)
 
             self.failIf(Page.objects.draft().count() != 3)
             self.failUnless(response is not None)
             self.failUnlessEqual(200, response.status_code)
-
 
         def test_publish_selected_confirmed(self):
             pages = Page.objects.draft()
@@ -1357,10 +1312,10 @@ if getattr(settings, 'TESTING_PUBLISH', False):
         
         def setUp(self):
             super(TestDeleteSelected, self).setUp()
-            self.fp1 = FlatPage.objects.create(url='/fp1', title='FP1')
-            self.fp2 = FlatPage.objects.create(url='/fp2', title='FP2')
-            self.fp3 = FlatPage.objects.create(url='/fp3', title='FP3')
-            
+            self.fp1 = FlatPage.objects.create(url='/fp1', title='FP1', enable_comments=False, registration_required=False)
+            self.fp2 = FlatPage.objects.create(url='/fp2', title='FP2', enable_comments=False, registration_required=False)
+            self.fp3 = FlatPage.objects.create(url='/fp3', title='FP3', enable_comments=False, registration_required=False)
+
             self.fp1.publish()
             self.fp2.publish()
             self.fp3.publish()
@@ -1372,7 +1327,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             settings.ROOT_URLCONF=patterns('',
                 ('^admin/', include(self.admin_site.urls)),
             )
-        
+
         def test_delete_selected_check_cannot_delete_public(self):
             # delete won't work (via admin) for public instances
             request = None
@@ -1381,30 +1336,38 @@ if getattr(settings, 'TESTING_PUBLISH', False):
                 fail()
             except PermissionDenied:
                 pass
-        
+
         def test_delete_selected(self):
             class dummy_request(object):
                 POST = {}
                 META = {}
-                
+
                 class user(object):
                     @classmethod
                     def has_perm(cls, *arg):
                         return True
-                    
+
                     @classmethod
                     def get_and_delete_messages(cls):
                         return []
-            
+
+                    @classmethod
+                    def is_active(cls, *arg):
+                        return True
+
+                    @classmethod
+                    def is_staff(cls, *arg):
+                        return True
+
             response = delete_selected(self.page_admin, dummy_request, FlatPage.objects.draft())
             self.failUnless(response is not None)
 
     class TestUndeleteSelected(TransactionTestCase):
-        
+
         def setUp(self):
             super(TestUndeleteSelected, self).setUp()
-            self.fp1 = FlatPage.objects.create(url='/fp1', title='FP1')
-            
+            self.fp1 = FlatPage.objects.create(url='/fp1', title='FP1', enable_comments=False, registration_required=False)
+
             self.fp1.publish()
 
             self.admin_site = AdminSite('Test Admin')
@@ -1622,4 +1585,3 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.failUnlessEqual(1, len(lookup_choices))
             pk, label = lookup_choices[0]
             self.failUnlessEqual(self.author.id, pk)
-

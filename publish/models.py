@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models.query import QuerySet, Q
 from django.db.models.base import ModelBase
@@ -25,7 +26,7 @@ class PublishableQuerySet(QuerySet):
     def changed(self):
         '''all draft objects that have not been published yet'''
         return self.filter(Publishable.Q_CHANGED)
-    
+
     def deleted(self):
         '''public objects that need deleting'''
         return self.filter(Publishable.Q_DELETED)
@@ -58,7 +59,10 @@ class PublishableQuerySet(QuerySet):
 
 
 class PublishableManager(models.Manager):
-    
+
+    def get_queryset(self):
+        return PublishableQuerySet(self.model)
+
     def get_query_set(self):
         return PublishableQuerySet(self.model)
 
@@ -362,36 +366,36 @@ class Publishable(models.Model):
                 else:
                     try:
                         related_items = [getattr(self, name)]
-                    except obj.model.DoesNotExist:
+                    except (obj.model.DoesNotExist, ObjectDoesNotExist):
                         related_items = []
 
                 for related_item in related_items:
                     related_item.publish(dry_run=dry_run, all_published=all_published, parent=self)
-                
+
                 # make sure we tidy up anything that needs deleting
                 if self.public and not dry_run:
                     if obj.field.rel.multiple:
                         public_ids = [r.public_id for r in related_items]
                         deleted_items = getattr(self.public, name).exclude(pk__in=public_ids)
                         deleted_items.delete(mark_for_deletion=False)
-        
+
         self._post_publish(dry_run, all_published)
 
         return public_version
-    
+
     def publish_deletions(self, all_published=None, parent=None, dry_run=False):
         '''
         actually delete models that have been marked for deletion
         '''
         if self.publish_state != Publishable.PUBLISH_DELETE:
-            return  
+            return
 
         if all_published is None:
             all_published = NestedSet()
 
         if self in all_published:
             return
-        
+
         all_published.add(self, parent=parent)
 
         self._pre_publish(dry_run, all_published, deleted=True)
@@ -509,5 +513,3 @@ if getattr(settings, 'TESTING_PUBLISH', False):
         tagged_page=models.ForeignKey(Page)
         page_tag=models.ForeignKey(Tag)
         tag_order=models.IntegerField()
-
-
