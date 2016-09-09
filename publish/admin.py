@@ -68,7 +68,7 @@ class PublishableAdmin(admin.ModelAdmin):
         # we want to show draft and deleted
         # objects in changelist in admin
         # so we can let the user select and publish them
-        qs = super(PublishableAdmin, self).queryset(request)
+        qs = super(PublishableAdmin, self).get_queryset(request)
         return qs.draft_and_deleted()
 
     def get_actions(self, request):
@@ -130,9 +130,9 @@ class PublishableAdmin(admin.ModelAdmin):
         url_name = 'admin:%s_%s_change' % (app_label, name)
         return reverse_url(url_name, args=(obj.pk,))
 
-    def change_view(self, request, object_id, *arg, **kw):
+    def change_view(self, request, object_id, form_url='', extra_context=None):
         try:
-            return super(PublishableAdmin, self).change_view(request, object_id, *arg, **kw)
+            return super(PublishableAdmin, self).change_view(request, object_id, form_url, extra_context=extra_context)
         except Http404 as http404:
             obj = self.get_object_by_public_id(request, object_id)
             if obj:
