@@ -7,19 +7,19 @@ SECRET_KEY = '1234567890'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': ':memory:',                      # Or path to database file if using sqlite3.
-        'USER': '',                      # Not used with sqlite3.
-        'PASSWORD': '',                  # Not used with sqlite3.
+        'ENGINE': 'django.db.backends.sqlite3',  # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
+        'NAME': ':memory:',  # Or path to database file if using sqlite3.
+        'USER': '',  # Not used with sqlite3.
+        'PASSWORD': '',  # Not used with sqlite3.
     }
 }
 
 STATIC_URL = '/static/'
 
-import django
+import django  # noqa
 
-if django.VERSION < (1,4):
-    INSTALLED_APPS = ( 
+if django.VERSION < (1, 4):
+    INSTALLED_APPS = (
         'django.contrib.contenttypes',
         'django.contrib.admin',
         'django.contrib.auth',
@@ -31,11 +31,11 @@ if django.VERSION < (1,4):
         'django.template.loaders.app_directories.load_template_source',
     )
 else:
-    INSTALLED_APPS = ( 
+    INSTALLED_APPS = (
         'django.contrib.contenttypes',
         'django.contrib.admin',
         'django.contrib.auth',
-        'django.contrib.staticfiles',
+        'django.contrib.messages',
         'publish',
     )
 
@@ -43,15 +43,17 @@ else:
         'django.template.loaders.filesystem.Loader',
         'django.template.loaders.app_directories.Loader',
     )
-    MIDDLEWARE_CLASSES = [
+    MIDDLEWARE_CLASSES = (
+        'django.middleware.common.CommonMiddleware',
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
         'django.contrib.messages.middleware.MessageMiddleware',
-    ]
+    )
 
+TESTING_PUBLISH = True
 
- 
-TESTING_PUBLISH=True
- 
 # enable this for coverage (using django test coverage
 # http://pypi.python.org/pypi/django-test-coverage )
-#TEST_RUNNER = 'django-test-coverage.runner.run_tests'
-#COVERAGE_MODULES = ('publish.models', 'publish.admin', 'publish.actions', 'publish.utils', 'publish.signals')
+# TEST_RUNNER = 'django-test-coverage.runner.run_tests'
+# COVERAGE_MODULES = ('publish.models', 'publish.admin', 'publish.actions', 'publish.utils', 'publish.signals')
