@@ -163,7 +163,7 @@ def unpublish_selected(modeladmin, request, queryset):
 
     # Populate unpublishable_objects, a data structure of all related objects that
     # will also be deleted.
-    unpublishable_objects, _perms_needed, protected = get_deleted_objects(
+    unpublishable_objects, model_count, _perms_needed, protected = get_deleted_objects(
         all_unpublished, opts, request.user, modeladmin.admin_site, using)
 
     if request.POST.get('post'):
