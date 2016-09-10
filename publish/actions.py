@@ -1,8 +1,9 @@
 from django import template
-from django.core.exceptions import PermissionDenied
 from django.contrib.admin import helpers
+from django.contrib.admin.actions import delete_selected as django_delete_selected
 from django.contrib.admin.utils import quote, model_ngettext, get_deleted_objects
-from django.db import router
+from django.core.exceptions import PermissionDenied
+from django.db import router, transaction
 from django.shortcuts import render_to_response
 from django.template.response import TemplateResponse
 from django.utils.encoding import force_unicode
@@ -10,7 +11,6 @@ from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.utils.translation import ugettext as _
-from django.contrib.admin.actions import delete_selected as django_delete_selected
 
 from models import Publishable
 from utils import NestedSet
@@ -93,6 +93,7 @@ def _root_path(admin_site):
     return getattr(admin_site, 'root_path', None)
 
 
+@transaction.atomic
 def publish_selected(modeladmin, request, queryset):
     queryset = queryset.select_for_update()
     opts = modeladmin.model._meta
@@ -144,6 +145,7 @@ def publish_selected(modeladmin, request, queryset):
     ], context, context_instance=template.RequestContext(request))
 
 
+@transaction.atomic
 def unpublish_selected(modeladmin, request, queryset):
     queryset = queryset.select_for_update()
 
