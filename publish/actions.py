@@ -1,7 +1,7 @@
 from django import template
 from django.core.exceptions import PermissionDenied
 from django.contrib.admin import helpers
-from django.contrib.admin.util import quote, model_ngettext, get_deleted_objects
+from django.contrib.admin.utils import quote, model_ngettext, get_deleted_objects
 from django.db import router
 from django.shortcuts import render_to_response
 from django.template.response import TemplateResponse
@@ -163,7 +163,7 @@ def unpublish_selected(modeladmin, request, queryset):
 
     # Populate unpublishable_objects, a data structure of all related objects that
     # will also be deleted.
-    unpublishable_objects, _perms_needed, protected = get_deleted_objects(
+    unpublishable_objects, model_count, _perms_needed, protected = get_deleted_objects(
         all_unpublished, opts, request.user, modeladmin.admin_site, using)
 
     if request.POST.get('post'):
