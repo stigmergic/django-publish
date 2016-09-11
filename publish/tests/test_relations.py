@@ -3,8 +3,8 @@ from django.conf import settings
 if getattr(settings, 'TESTING_PUBLISH', False):
     from django.test import TransactionTestCase
 
-    from publish.models import (Publishable, Page, PageBlock, Author,
-                                Comment, Tag, PageTagOrder, Site, FlatPage)
+    from publish.models import Publishable
+    from .models import Page, PageBlock, Author, Comment, Tag, PageTagOrder, Site, FlatPage
 
     class TestPublishableRecursiveForeignKey(TransactionTestCase):
 

@@ -3,8 +3,9 @@ from django.conf import settings
 if getattr(settings, 'TESTING_PUBLISH', False):
     from django.test import TransactionTestCase
 
-    from publish.models import Publishable, FlatPage, UnpublishException, PublishException
+    from publish.models import Publishable, UnpublishException, PublishException
     from publish.utils import NestedSet
+    from .models import FlatPage
 
     class TestBasicPublishable(TransactionTestCase):
 

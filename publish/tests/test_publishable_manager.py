@@ -3,7 +3,7 @@ from django.conf import settings
 if getattr(settings, 'TESTING_PUBLISH', False):
     from django.test import TransactionTestCase
 
-    from publish.models import FlatPage
+    from .models import FlatPage
 
     class TestPublishableManager(TransactionTestCase):
 
