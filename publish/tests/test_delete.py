@@ -8,7 +8,8 @@ if getattr(settings, 'TESTING_PUBLISH', False):
 
     from publish.actions import delete_selected, undelete_selected
     from publish.admin import PublishableAdmin
-    from publish.models import Publishable, FlatPage
+    from publish.models import Publishable
+    from .models import FlatPage
 
     class TestDeleteSelected(TransactionTestCase):
 

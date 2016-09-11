@@ -11,9 +11,10 @@ if getattr(settings, 'TESTING_PUBLISH', False):
 
     from publish.actions import _convert_all_published_to_html, publish_selected, unpublish_selected
     from publish.admin import PublishableAdmin, PublishableStackedInline
-    from publish.models import Publishable, Page, PageBlock, Author
+    from publish.models import Publishable
     from publish.utils import NestedSet
     from . import RequestFactoryMixin
+    from .models import Page, PageBlock, Author
 
     class TestPublishableAdmin(TransactionTestCase, RequestFactoryMixin):
 

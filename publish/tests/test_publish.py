@@ -5,9 +5,10 @@ if getattr(settings, 'TESTING_PUBLISH', False):
 
     from publish.admin import PublishableAdmin
     from publish.filters import PublishableRelatedFieldListFilter
-    from publish.models import Publishable, Page, Author, update_pub_date
+    from publish.models import Publishable
     from publish.signals import pre_publish, post_publish
     from publish.utils import NestedSet
+    from .models import Page, Author, update_pub_date
 
     class TestPublishFunction(TransactionTestCase):
 
