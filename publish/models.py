@@ -354,22 +354,23 @@ class Publishable(models.Model):
 
                 old_objs = public_m2m_manager.exclude(pk__in=[p.pk for p in public_objs])
 
-                if through_model:
-                    through_manager = through_model._default_manager
-                    params = {
-                        public_version.__class__.__name__.lower(): public_version}
+                through_manager = through_model._default_manager
+                params = {
+                    public_version.__class__.__name__.lower(): public_version}
 
+                try:
+                    public_m2m_manager.remove(*old_objs)
+                except AttributeError:
                     for old_obj in old_objs:
                         params[old_obj.__class__.__name__.lower()] = old_obj
                         through_manager.get(**params).delete()
 
+                try:
+                    public_m2m_manager.add(*public_objs)
+                except AttributeError:
                     for pub_obj in public_objs:
                         params[pub_obj.__class__.__name__.lower()] = pub_obj
                         through_manager.create(**params)
-
-                else:
-                    public_m2m_manager.remove(*old_objs)
-                    public_m2m_manager.add(*public_objs)
 
         # one-to-many and one-to-one reverse relations
         for obj in self._meta.get_all_related_objects():
