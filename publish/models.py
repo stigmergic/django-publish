@@ -1,12 +1,12 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models.query import QuerySet, Q
 from django.db.models.base import ModelBase
 from django.db.models.fields.related import RelatedField
-from django.conf import settings
+from django.db.models.query import QuerySet, Q
 
-from utils import NestedSet
 from signals import pre_publish, post_publish
+from utils import NestedSet
+
 
 # this takes some inspiration from the publisher stuff in
 # django-cms 2.0
@@ -25,7 +25,6 @@ class UnpublishException(Exception):
 
 
 class PublishableQuerySet(QuerySet):
-
     def changed(self):
         '''all draft objects that have not been published yet'''
         return self.filter(Publishable.Q_CHANGED)
@@ -62,7 +61,6 @@ class PublishableQuerySet(QuerySet):
 
 
 class PublishableManager(models.Manager):
-
     def get_queryset(self):
         return PublishableQuerySet(self.model)
 
@@ -90,7 +88,6 @@ class PublishableManager(models.Manager):
 
 
 class PublishableBase(ModelBase):
-
     def __new__(cls, name, bases, attrs):
         new_class = super(PublishableBase, cls).__new__(cls, name, bases, attrs)
         # insert an extra permission in for "Can publish"
@@ -98,7 +95,7 @@ class PublishableBase(ModelBase):
         opts = new_class._meta
         name = u'Can publish %s' % opts.verbose_name
         code = u'publish_%s' % opts.object_name.lower()
-        opts.permissions = tuple(opts.permissions) + ((code, name), )
+        opts.permissions = tuple(opts.permissions) + ((code, name),)
         opts.get_publish_permission = lambda: code
 
         return new_class
@@ -120,7 +117,8 @@ class Publishable(models.Model):
     Q_DELETED = Q(is_public=False, publish_state=PUBLISH_DELETE)
 
     is_public = models.BooleanField(default=False, editable=False, db_index=True)
-    publish_state = models.IntegerField('Publication status', editable=False, db_index=True, choices=PUBLISH_CHOICES, default=PUBLISH_DEFAULT)
+    publish_state = models.IntegerField('Publication status', editable=False, db_index=True, choices=PUBLISH_CHOICES,
+                                        default=PUBLISH_DEFAULT)
     public = models.OneToOneField('self', related_name='draft', null=True,
                                   editable=False, on_delete=models.SET_NULL)
 
@@ -305,7 +303,8 @@ class Publishable(models.Model):
                     related = field.rel.to
                     if issubclass(related, Publishable):
                         if value is not None:
-                            value = value._get_public_or_publish(dry_run=dry_run, all_published=all_published, parent=self)
+                            value = value._get_public_or_publish(dry_run=dry_run, all_published=all_published,
+                                                                 parent=self)
 
                 if not dry_run:
                     publish_function = self.PublishMeta.find_publish_function(field.name, setattr)
@@ -347,13 +346,30 @@ class Publishable(models.Model):
 
             related = field_object.rel.to
             if issubclass(related, Publishable):
-                public_objs = [p._get_public_or_publish(dry_run=dry_run, all_published=all_published, parent=self) for p in public_objs]
+                public_objs = [p._get_public_or_publish(dry_run=dry_run, all_published=all_published, parent=self) for p
+                               in public_objs]
 
             if not dry_run:
                 public_m2m_manager = getattr(public_version, name)
+
                 old_objs = public_m2m_manager.exclude(pk__in=[p.pk for p in public_objs])
-                public_m2m_manager.remove(*old_objs)
-                public_m2m_manager.add(*public_objs)
+
+                if through_model:
+                    through_manager = through_model._default_manager
+                    params = {
+                        public_version.__class__.__name__.lower(): public_version}
+
+                    for old_obj in old_objs:
+                        params[old_obj.__class__.__name__.lower()] = old_obj
+                        through_manager.get(**params).delete()
+
+                    for pub_obj in public_objs:
+                        params[pub_obj.__class__.__name__.lower()] = pub_obj
+                        through_manager.create(**params)
+
+                else:
+                    public_m2m_manager.remove(*old_objs)
+                    public_m2m_manager.add(*public_objs)
 
         # one-to-many and one-to-one reverse relations
         for obj in self._meta.get_all_related_objects():
