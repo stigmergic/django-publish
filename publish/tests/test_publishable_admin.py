@@ -246,7 +246,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.user = User.objects.create_user('test1', 'test@example.com', 'jkljkl')
             # override urls, so reverse works
             settings.ROOT_URLCONF = [
-                ('^admin/', include(self.admin_site.urls)),
+                url('^admin/', include(self.admin_site.urls)),
             ]
 
         def test_publish_selected_confirm(self):
