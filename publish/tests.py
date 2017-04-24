@@ -1,12 +1,12 @@
 from django.conf import settings
- 
+
 if getattr(settings, 'TESTING_PUBLISH', False):
     import unittest
     from django.test import TransactionTestCase
     from django.contrib.admin.sites import AdminSite
     from django.contrib.auth.models import User
     from django.forms.models import ModelChoiceField, ModelMultipleChoiceField
-    from django.conf.urls.defaults import *
+    from django.conf.urls import include, url
     from django.core.exceptions import PermissionDenied
     from django.http import Http404
     
@@ -782,9 +782,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.page_admin = PageAdmin(Page, self.admin_site)
 
             # override urls, so reverse works
-            settings.ROOT_URLCONF=patterns('',
-                ('^admin/', include(self.admin_site.urls)),
-            )
+            settings.ROOT_URLCONF=[
+                url('^admin/', include(self.admin_site.urls)),
+            ]
         
         def test_get_publish_status_display(self):
             page = Page.objects.create(slug="hhkkk", title="hjkhjkh")
@@ -1101,9 +1101,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.page_admin = PublishableAdmin(Page, self.admin_site)
             
             # override urls, so reverse works
-            settings.ROOT_URLCONF=patterns('',
-                ('^admin/', include(self.admin_site.urls)),
-            )
+            settings.ROOT_URLCONF=[
+                url('^admin/', include(self.admin_site.urls)),
+            ]
 
         def test_publish_selected_confirm(self):
             pages = Page.objects.exclude(id=self.fp3.id)
@@ -1293,9 +1293,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.page_admin = PublishableAdmin(Page, self.admin_site)
 
             # override urls, so reverse works
-            settings.ROOT_URLCONF=patterns('',
-                ('^admin/', include(self.admin_site.urls)),
-            )
+            settings.ROOT_URLCONF=[
+                url('^admin/', include(self.admin_site.urls)),
+            ]
 
         def test_unpublish_selected_confirm(self):
             pages = Page.objects.draft()
@@ -1369,9 +1369,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.page_admin = PublishableAdmin(FlatPage, self.admin_site)
             
             # override urls, so reverse works
-            settings.ROOT_URLCONF=patterns('',
-                ('^admin/', include(self.admin_site.urls)),
-            )
+            settings.ROOT_URLCONF=[
+                url('^admin/', include(self.admin_site.urls)),
+            ]
         
         def test_delete_selected_check_cannot_delete_public(self):
             # delete won't work (via admin) for public instances
