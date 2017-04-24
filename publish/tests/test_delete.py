@@ -4,7 +4,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
     from django.conf.urls import include, url
     from django.contrib.admin.sites import AdminSite
     from django.core.exceptions import PermissionDenied
-    from django.test import TransactionTestCase
+    from django.test import TransactionTestCase, RequestFactory
 
     from publish.actions import delete_selected, undelete_selected
     from publish.admin import PublishableAdmin
@@ -28,7 +28,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
 
             # override urls, so reverse works
             settings.ROOT_URLCONF = [
-                ('^admin/', include(self.admin_site.urls)),
+                url('^admin/', include(self.admin_site.urls)),
             ]
 
         def test_delete_selected_check_cannot_delete_public(self):
@@ -41,26 +41,28 @@ if getattr(settings, 'TESTING_PUBLISH', False):
                 pass
 
         def test_delete_selected(self):
-            class dummy_request(object):
-                POST = {}
-                META = {}
 
-                class user(object):
-                    @classmethod
-                    def has_perm(cls, *arg):
-                        return True
+            class user(object):
+                @classmethod
+                def has_perm(cls, *arg):
+                    return True
 
-                    @classmethod
-                    def get_and_delete_messages(cls):
-                        return []
+                @classmethod
+                def get_and_delete_messages(cls):
+                    return []
 
-                    @classmethod
-                    def is_active(cls, *arg):
-                        return True
+                @classmethod
+                def is_active(cls, *arg):
+                    return True
 
-                    @classmethod
-                    def is_staff(cls, *arg):
-                        return True
+                @classmethod
+                def is_staff(cls, *arg):
+                    return True
+
+            rf = RequestFactory()
+            dummy_request = rf.request()
+            dummy_request.POST = {}
+            dummy_request.user = user()
 
             response = delete_selected(self.page_admin, dummy_request, FlatPage.objects.draft())
             self.failUnless(response is not None)
@@ -77,12 +79,15 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.page_admin = PublishableAdmin(FlatPage, self.admin_site)
 
         def test_undelete_selected(self):
-            class dummy_request(object):
 
-                class user(object):
-                    @classmethod
-                    def has_perm(cls, *arg):
-                        return True
+            class user(object):
+                @classmethod
+                def has_perm(cls, *arg):
+                    return True
+
+            rf = RequestFactory()
+            dummy_request = rf.request()
+            dummy_request.user = user()
 
             self.fp1.delete()
             self.failUnlessEqual(Publishable.PUBLISH_DELETE, self.fp1.publish_state)
@@ -95,12 +100,15 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.failUnlessEqual(Publishable.PUBLISH_CHANGED, fp1.publish_state)
 
         def test_undelete_selected_no_permission(self):
-            class dummy_request(object):
 
-                class user(object):
-                    @classmethod
-                    def has_perm(cls, *arg):
-                        return False
+            class user(object):
+                @classmethod
+                def has_perm(cls, *arg):
+                    return False
+
+            rf = RequestFactory()
+            dummy_request = rf.request()
+            dummy_request.user = user()
 
             self.fp1.delete()
             self.failUnlessEqual(Publishable.PUBLISH_DELETE, self.fp1.publish_state)
