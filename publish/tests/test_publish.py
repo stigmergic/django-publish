@@ -2,6 +2,7 @@ from django.conf import settings
 
 if getattr(settings, 'TESTING_PUBLISH', False):
     from django.test import TransactionTestCase
+    from django.contrib.admin.sites import AdminSite
 
     from publish.admin import PublishableAdmin
     from publish.filters import PublishableRelatedFieldListFilter
@@ -148,13 +149,17 @@ if getattr(settings, 'TESTING_PUBLISH', False):
 
     class TestPublishableRelatedFilterSpec(TransactionTestCase):
 
+        def setUp(self):
+            self.admin_site = AdminSite('Test Admin')
+            self.publishable_admin = PublishableAdmin(Page, self.admin_site)
+
         def test_overridden_spec(self):
             # make sure the publishable filter spec
             # gets used when we use a publishable field
             class dummy_request(object):
                 GET = {}
 
-            spec = FieldListFilter.create(Page._meta.get_field('authors'), dummy_request, {}, Page, PublishableAdmin, None)
+            spec = FieldListFilter.create(Page._meta.get_field('authors'), dummy_request, {}, Page, self.publishable_admin, None)
             self.failUnless(isinstance(spec, PublishableRelatedFieldListFilter))
 
         def test_only_draft_shown(self):
@@ -168,7 +173,7 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             class dummy_request(object):
                 GET = {}
 
-            spec = FieldListFilter.create(Page._meta.get_field('authors'), dummy_request, {}, Page, PublishableAdmin, None)
+            spec = FieldListFilter.create(Page._meta.get_field('authors'), dummy_request, {}, Page, self.publishable_admin, None)
 
             lookup_choices = spec.lookup_choices
             self.failUnlessEqual(1, len(lookup_choices))
