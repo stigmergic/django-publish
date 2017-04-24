@@ -1,7 +1,7 @@
 from django import template
 from django.core.exceptions import PermissionDenied
 from django.contrib.admin import helpers
-from django.contrib.admin.util import quote, model_ngettext, get_deleted_objects
+from django.contrib.admin.utils import quote, model_ngettext, get_deleted_objects
 from django.db import router
 from django.shortcuts import render_to_response
 from django.template.response import TemplateResponse
