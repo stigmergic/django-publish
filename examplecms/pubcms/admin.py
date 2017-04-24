@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from publish.admin import PublishableAdmin, PublishableStackedInline
-from pubcms.models import Page, PageBlock, Category, Image
+from .models import Page, PageBlock, Category, Image
 
 class PageBlockInlineAdmin(PublishableStackedInline):
     model = PageBlock
