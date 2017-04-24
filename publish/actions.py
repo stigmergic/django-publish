@@ -211,7 +211,7 @@ def unpublish_selected(modeladmin, request, queryset):
         "admin/%s/%s/unpublish_selected_confirmation.html" % (app_label, opts.object_name.lower()),
         "admin/%s/unpublish_selected_confirmation.html" % app_label,
         "admin/unpublish_selected_confirmation.html"
-    ], context, current_app=modeladmin.admin_site.name)
+    ], context)
 
 
 publish_selected.short_description = "Publish selected %(verbose_name_plural)s"
