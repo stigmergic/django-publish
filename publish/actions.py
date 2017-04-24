@@ -142,7 +142,7 @@ def publish_selected(modeladmin, request, queryset):
         "admin/%s/%s/publish_selected_confirmation.html" % (app_label, opts.object_name.lower()),
         "admin/%s/publish_selected_confirmation.html" % app_label,
         "admin/publish_selected_confirmation.html"
-    ], context, context_instance=template.RequestContext(request))
+    ], context)
 
 
 @transaction.atomic
