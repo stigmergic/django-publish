@@ -1,11 +1,12 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models.query import QuerySet, Q
 from django.db.models.base import ModelBase
 from django.db.models.fields.related import RelatedField
-from django.conf import settings
+from django.db.models.query import QuerySet, Q
 
-from .utils import NestedSet
 from .signals import pre_publish, post_publish
+from .utils import NestedSet
+
 
 # this takes some inspiration from the publisher stuff in
 # django-cms 2.0
@@ -14,18 +15,20 @@ from .signals import pre_publish, post_publish
 # but we want this to be a reusable/standalone app and have a few different needs
 #
 
+
 class PublishException(Exception):
     pass
+
 
 class UnpublishException(Exception):
     pass
 
-class PublishableQuerySet(QuerySet):
 
+class PublishableQuerySet(QuerySet):
     def changed(self):
         '''all draft objects that have not been published yet'''
         return self.filter(Publishable.Q_CHANGED)
-    
+
     def deleted(self):
         '''public objects that need deleting'''
         return self.filter(Publishable.Q_DELETED)
@@ -33,10 +36,10 @@ class PublishableQuerySet(QuerySet):
     def draft(self):
         '''all draft objects'''
         return self.filter(Publishable.Q_DRAFT)
-   
+
     def draft_and_deleted(self):
         return self.filter(Publishable.Q_DRAFT | Publishable.Q_DELETED)
- 
+
     def published(self):
         '''all public/published objects'''
         return self.filter(Publishable.Q_PUBLISHED)
@@ -58,32 +61,33 @@ class PublishableQuerySet(QuerySet):
 
 
 class PublishableManager(models.Manager):
-    
+    def get_queryset(self):
+        return PublishableQuerySet(self.model)
+
     def get_query_set(self):
         return PublishableQuerySet(self.model)
 
     def changed(self):
         '''all draft objects that have not been published yet'''
         return self.get_query_set().changed()
-        
+
     def deleted(self):
         '''public objects that need deleting'''
         return self.get_query_set().deleted()
-    
+
     def draft(self):
         '''all draft objects'''
         return self.get_query_set().draft()
-    
+
     def draft_and_deleted(self):
-        return self.get_query_set().draft_and_deleted()   
- 
+        return self.get_query_set().draft_and_deleted()
+
     def published(self):
         '''all public/published objects'''
         return self.get_query_set().published()
 
 
 class PublishableBase(ModelBase):
-    
     def __new__(cls, name, bases, attrs):
         new_class = super(PublishableBase, cls).__new__(cls, name, bases, attrs)
         # insert an extra permission in for "Can publish"
@@ -91,39 +95,40 @@ class PublishableBase(ModelBase):
         opts = new_class._meta
         name = u'Can publish %s' % opts.verbose_name
         code = u'publish_%s' % opts.object_name.lower()
-        opts.permissions = tuple(opts.permissions) + ((code, name), )
+        opts.permissions = tuple(opts.permissions) + ((code, name),)
         opts.get_publish_permission = lambda: code
-        
+
         return new_class
-    
+
 
 class Publishable(models.Model):
     __metaclass__ = PublishableBase
 
     PUBLISH_DEFAULT = 0
     PUBLISH_CHANGED = 1
-    PUBLISH_DELETE  = 2
+    PUBLISH_DELETE = 2
 
     PUBLISH_CHOICES = ((PUBLISH_DEFAULT, 'Published'), (PUBLISH_CHANGED, 'Changed'), (PUBLISH_DELETE, 'To be deleted'))
 
     # make these available here so can easily re-use them in other code
     Q_PUBLISHED = Q(is_public=True)
-    Q_DRAFT     = Q(is_public=False) & ~Q(publish_state=PUBLISH_DELETE)
-    Q_CHANGED   = Q(is_public=False, publish_state=PUBLISH_CHANGED)
-    Q_DELETED   = Q(is_public=False, publish_state=PUBLISH_DELETE)
+    Q_DRAFT = Q(is_public=False) & ~Q(publish_state=PUBLISH_DELETE)
+    Q_CHANGED = Q(is_public=False, publish_state=PUBLISH_CHANGED)
+    Q_DELETED = Q(is_public=False, publish_state=PUBLISH_DELETE)
 
     is_public = models.BooleanField(default=False, editable=False, db_index=True)
-    publish_state = models.IntegerField('Publication status', editable=False, db_index=True, choices=PUBLISH_CHOICES, default=PUBLISH_DEFAULT)
+    publish_state = models.IntegerField('Publication status', editable=False, db_index=True, choices=PUBLISH_CHOICES,
+                                        default=PUBLISH_DEFAULT)
     public = models.OneToOneField('self', related_name='draft', null=True,
-            editable=False, on_delete=models.SET_NULL)
-    
+                                  editable=False, on_delete=models.SET_NULL)
+
     class Meta:
         abstract = True
 
     class PublishMeta(object):
         publish_exclude_fields = ['id', 'is_public', 'publish_state', 'public', 'draft']
         publish_reverse_fields = []
-        publish_functions = {}        
+        publish_functions = {}
 
         @classmethod
         def _combined_fields(cls, field_name):
@@ -154,7 +159,7 @@ class Publishable(models.Model):
             return default_function
 
     objects = PublishableManager()
-    
+
     def is_marked_for_deletion(self):
         return self.publish_state == Publishable.PUBLISH_DELETE
 
@@ -172,7 +177,7 @@ class Publishable(models.Model):
             self.publish_state = Publishable.PUBLISH_CHANGED
 
         super(Publishable, self).save(*arg, **kw)
-    
+
     def delete(self, mark_for_deletion=True):
         if self.public and mark_for_deletion:
             self.publish_state = Publishable.PUBLISH_DELETE
@@ -197,12 +202,11 @@ class Publishable(models.Model):
             instance = all_published.original(self)
             post_publish.send(sender=sender, instance=instance, deleted=deleted)
 
-
     def publish(self, dry_run=False, all_published=None, parent=None):
         '''
         either publish changes or deletions, depending on
         whether this model is public or draft.
-    
+
         public models will be examined to see if they need deleting
         and deleted if so.
         '''
@@ -210,7 +214,7 @@ class Publishable(models.Model):
             raise PublishException("Cannot publish public model - publish should be called from draft model")
         if self.pk is None:
             raise PublishException("Please save model before publishing")
-         
+
         if self.publish_state == Publishable.PUBLISH_DELETE:
             self.publish_deletions(dry_run=dry_run, all_published=all_published, parent=parent)
             return None
@@ -254,13 +258,13 @@ class Publishable(models.Model):
                 return field_object.rel.through_model
             return through
         return None
-    
+
     def _changes_need_publishing(self):
         return self.publish_state == Publishable.PUBLISH_CHANGED or not self.public
 
     def publish_changes(self, dry_run=False, all_published=None, parent=None):
         '''
-        publish changes to the model - basically copy all of it's content to another copy in the 
+        publish changes to the model - basically copy all of it's content to another copy in the
         database.
         if you set dry_run=True nothing will be written to the database.  combined with
         the all_published value one can therefore get information about what other models
@@ -277,34 +281,35 @@ class Publishable(models.Model):
         if self in all_published:
             return all_published.original(self).public
 
-        all_published.add(self, parent=parent)        
+        all_published.add(self, parent=parent)
 
         self._pre_publish(dry_run, all_published)
 
         public_version = self.public
         if not public_version:
             public_version = self.__class__(is_public=True)
-        
+
         excluded_fields = self.PublishMeta.excluded_fields()
         reverse_fields_to_publish = self.PublishMeta.reverse_fields_to_publish()
-        
+
         if self._changes_need_publishing():
             # copy over regular fields
             for field in self._meta.fields:
                 if field.name in excluded_fields:
                     continue
-                
+
                 value = getattr(self, field.name)
                 if isinstance(field, RelatedField):
                     related = field.rel.to
                     if issubclass(related, Publishable):
                         if value is not None:
-                            value = value._get_public_or_publish(dry_run=dry_run, all_published=all_published, parent=self)
-                
+                            value = value._get_public_or_publish(dry_run=dry_run, all_published=all_published,
+                                                                 parent=self)
+
                 if not dry_run:
                     publish_function = self.PublishMeta.find_publish_function(field.name, setattr)
                     publish_function(public_version, field.name, value)
-        
+
             # save the public version and update
             # state so we know everything is up-to-date
             if not dry_run:
@@ -312,13 +317,13 @@ class Publishable(models.Model):
                 self.public = public_version
                 self.publish_state = Publishable.PUBLISH_DEFAULT
                 self.save(mark_changed=False)
-        
+
         # copy over many-to-many fields
         for field in self._meta.many_to_many:
             name = field.name
             if name in excluded_fields:
                 continue
-            
+
             m2m_manager = getattr(self, name)
             public_objs = list(m2m_manager.all())
 
@@ -337,14 +342,16 @@ class Publishable(models.Model):
                             reverse_name = related_field.related.get_accessor_name()
                             reverse_fields_to_publish.append(reverse_name)
                             break
-                    continue # m2m via through table won't be dealt with here
+                    continue  # m2m via through table won't be dealt with here
 
             related = field_object.rel.to
             if issubclass(related, Publishable):
-                public_objs = [p._get_public_or_publish(dry_run=dry_run, all_published=all_published, parent=self) for p in public_objs]
-            
+                public_objs = [p._get_public_or_publish(dry_run=dry_run, all_published=all_published, parent=self) for p
+                               in public_objs]
+
             if not dry_run:
                 public_m2m_manager = getattr(public_version, name)
+
                 old_objs = public_m2m_manager.exclude(pk__in=[p.pk for p in public_objs])
                 public_m2m_manager.remove(*old_objs)
                 public_m2m_manager.add(*public_objs)
@@ -362,36 +369,36 @@ class Publishable(models.Model):
                 else:
                     try:
                         related_items = [getattr(self, name)]
-                    except obj.model.DoesNotExist:
+                    except (obj.model.DoesNotExist, ObjectDoesNotExist):
                         related_items = []
 
                 for related_item in related_items:
                     related_item.publish(dry_run=dry_run, all_published=all_published, parent=self)
-                
+
                 # make sure we tidy up anything that needs deleting
                 if self.public and not dry_run:
                     if obj.field.rel.multiple:
                         public_ids = [r.public_id for r in related_items]
                         deleted_items = getattr(self.public, name).exclude(pk__in=public_ids)
                         deleted_items.delete(mark_for_deletion=False)
-        
+
         self._post_publish(dry_run, all_published)
 
         return public_version
-    
+
     def publish_deletions(self, all_published=None, parent=None, dry_run=False):
         '''
         actually delete models that have been marked for deletion
         '''
         if self.publish_state != Publishable.PUBLISH_DELETE:
-            return  
+            return
 
         if all_published is None:
             all_published = NestedSet()
 
         if self in all_published:
             return
-        
+
         all_published.add(self, parent=parent)
 
         self._pre_publish(dry_run, all_published, deleted=True)
@@ -408,7 +415,7 @@ class Publishable(models.Model):
                 instances = [getattr(self, name)]
             for instance in instances:
                 instance.publish_deletions(all_published=all_published, parent=self, dry_run=dry_run)
-        
+
         if not dry_run:
             public = self.public
             self.delete(mark_for_deletion=False)
@@ -416,98 +423,3 @@ class Publishable(models.Model):
                 public.delete(mark_for_deletion=False)
 
         self._post_publish(dry_run, all_published, deleted=True)
-
-
-if getattr(settings, 'TESTING_PUBLISH', False):
-    # classes to test that publishing etc work ok
-    from datetime import datetime
-
-    class Site(models.Model):
-        title = models.CharField(max_length=100)
-        domain = models.CharField(max_length=100)
-
-    class FlatPage(Publishable):
-        url = models.CharField(max_length=100, db_index=True)
-        title = models.CharField(max_length=200)
-        content = models.TextField(blank=True)
-        enable_comments = models.BooleanField()
-        template_name = models.CharField(max_length=70, blank=True)
-        registration_required = models.BooleanField()
-        sites = models.ManyToManyField(Site)
-
-        class Meta:
-            ordering = ['url']
-        
-        def get_absolute_url(self):
-            if self.is_public:
-                return self.url
-            return '%s*' % self.url
-    
-    class Author(Publishable):
-        name = models.CharField(max_length=100)
-        profile = models.TextField(blank=True)
-
-        class PublishMeta(Publishable.PublishMeta):
-            publish_reverse_fields = ['authorprofile']
-    
-    class AuthorProfile(Publishable):
-        author = models.OneToOneField(Author)
-        extra_profile = models.TextField(blank=True)
-
-    class ChangeLog(models.Model):
-        changed = models.DateTimeField(db_index=True, auto_now_add=True)
-        message = models.CharField(max_length=200)
-    
-    class Tag(models.Model):
-        title = models.CharField(max_length=100, unique=True)
-        slug = models.CharField(max_length=100)
-   
-    # publishable model with a reverse relation to 
-    # page (as a child) 
-    class PageBlock(Publishable):
-        page=models.ForeignKey('Page')
-        content = models.TextField(blank=True)
-    
-    # non-publishable reverse relation to page (as a child)
-    class Comment(models.Model):
-        page=models.ForeignKey('Page')
-        comment = models.TextField()
-    
-    def update_pub_date(page, field_name, value):
-        # ignore value entirely and replace with now
-        setattr(page, field_name, update_pub_date.pub_date)
-    update_pub_date.pub_date = datetime.now()
-
-    class Page(Publishable):
-        slug = models.CharField(max_length=100, db_index=True)
-        title = models.CharField(max_length=200)
-        content = models.TextField(blank=True)
-        pub_date = models.DateTimeField(default=datetime.now)        
- 
-        parent = models.ForeignKey('self', blank=True, null=True)
-        
-        authors = models.ManyToManyField(Author, blank=True)
-        log = models.ManyToManyField(ChangeLog, blank=True)
-        tags = models.ManyToManyField(Tag, through='PageTagOrder', blank=True)
-
-        class Meta:
-            ordering = ['slug']
-
-        class PublishMeta(Publishable.PublishMeta):
-            publish_exclude_fields = ['log']
-            publish_reverse_fields = ['pageblock_set']
-            publish_functions = { 'pub_date': update_pub_date }
-
-        def get_absolute_url(self):
-            if not self.parent:
-                return u'/%s/' % self.slug
-            return '%s%s/' % (self.parent.get_absolute_url(), self.slug)
-    
-    class PageTagOrder(Publishable):
-        # note these are named in non-standard way to
-        # ensure we are getting correct names
-        tagged_page=models.ForeignKey(Page)
-        page_tag=models.ForeignKey(Tag)
-        tag_order=models.IntegerField()
-
-

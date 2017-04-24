@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.forms.models import BaseInlineFormSet
-from django.utils.encoding import force_unicode 
+from django.utils.encoding import force_unicode
 from django.http import Http404, HttpResponseRedirect
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse as reverse_url
@@ -19,7 +19,7 @@ def _make_form_readonly(form):
         if hasattr(widget, 'widget'):
             widget = getattr(widget, 'widget')
         widget.attrs['disabled'] = 'disabled'
-    
+
 
 def _make_adminform_readonly(adminform, inline_admin_formsets):
     _make_form_readonly(adminform.form)
@@ -32,20 +32,21 @@ def _draft_queryset(db_field, kwargs):
     # see if we need to filter the field's queryset
     model = db_field.rel.to
     if issubclass(model, Publishable):
-        kwargs['queryset'] = model._default_manager.draft() \
-                              .complex_filter(db_field.rel.limit_choices_to)
+        kwargs['queryset'] = model._default_manager.draft().complex_filter(db_field.rel.limit_choices_to)
 
 
 def attach_filtered_formfields(admin_class):
-    # class decorator to add in extra methods that 
+    # class decorator to add in extra methods that
     # are common to several classes
     super_formfield_for_foreignkey = admin_class.formfield_for_foreignkey
+
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         _draft_queryset(db_field, kwargs)
         return super_formfield_for_foreignkey(self, db_field, request, **kwargs)
     admin_class.formfield_for_foreignkey = formfield_for_foreignkey
-    
+
     super_formfield_for_manytomany = admin_class.formfield_for_manytomany
+
     def formfield_for_manytomany(self, db_field, request=None, **kwargs):
         _draft_queryset(db_field, kwargs)
         return super_formfield_for_manytomany(self, db_field, request, **kwargs)
@@ -54,13 +55,13 @@ def attach_filtered_formfields(admin_class):
 
 
 class PublishableAdmin(admin.ModelAdmin):
-    
+
     actions = [publish_selected, unpublish_selected, delete_selected, undelete_selected]
     change_form_template = 'admin/publish_change_form.html'
     publish_confirmation_template = None
     unpublish_confirmation_template = None
     deleted_form_template = None
-    
+
     list_display = ['__unicode__', 'publish_state']
     list_filter = ['publish_state']
 
@@ -68,7 +69,7 @@ class PublishableAdmin(admin.ModelAdmin):
         # we want to show draft and deleted
         # objects in changelist in admin
         # so we can let the user select and publish them
-        qs = super(PublishableAdmin, self).queryset(request)
+        qs = super(PublishableAdmin, self).get_queryset(request)
         return qs.draft_and_deleted()
 
     def get_actions(self, request):
@@ -85,13 +86,13 @@ class PublishableAdmin(admin.ModelAdmin):
             if obj.is_public or (request.method == 'POST' and obj.publish_state == Publishable.PUBLISH_DELETE):
                 return False
         return super(PublishableAdmin, self).has_change_permission(request, obj)
-    
+
     def has_delete_permission(self, request, obj=None):
         # use can never delete models directly
         if obj and obj.is_public:
             return False
         return super(PublishableAdmin, self).has_delete_permission(request, obj)
-    
+
     def has_undelete_permission(self, request, obj=None):
         return self.has_publish_permission(request, obj=obj)
 
@@ -113,7 +114,7 @@ class PublishableAdmin(admin.ModelAdmin):
             if other_modeladmin:
                 # just log as a change
                 self.log_change(request, object, message)
-    
+
     def get_object_by_public_id(self, request, public_id):
         queryset = self.queryset(request)
         model = queryset.model
@@ -130,9 +131,9 @@ class PublishableAdmin(admin.ModelAdmin):
         url_name = 'admin:%s_%s_change' % (app_label, name)
         return reverse_url(url_name, args=(obj.pk,))
 
-    def change_view(self, request, object_id, *arg, **kw):
+    def change_view(self, request, object_id, form_url='', extra_context=None):
         try:
-            return super(PublishableAdmin, self).change_view(request, object_id, *arg, **kw)
+            return super(PublishableAdmin, self).change_view(request, object_id, form_url, extra_context=extra_context)
         except Http404 as http404:
             obj = self.get_object_by_public_id(request, object_id)
             if obj:
@@ -145,11 +146,11 @@ class PublishableAdmin(admin.ModelAdmin):
         if obj and obj.publish_state == Publishable.PUBLISH_DELETE:
             adminform, inline_admin_formsets = context['adminform'], context['inline_admin_formsets']
             _make_adminform_readonly(adminform, inline_admin_formsets)
-            
+
             context.update({
                 'title': 'This %s will be deleted' % force_unicode(self.opts.verbose_name),
             })
-        
+
         return super(PublishableAdmin, self).render_change_form(request, context, add, change, form_url, obj)
 
 
@@ -157,7 +158,7 @@ class PublishableBaseInlineFormSet(BaseInlineFormSet):
     # we will actually delete inline objects, rather than
     # just marking them for deletion, as they are like
     # an edit to their parent
-    
+
     def save_existing_objects(self, commit=True):
         saved_instances = super(PublishableBaseInlineFormSet, self).save_existing_objects(commit=commit)
         for obj in self.deleted_objects:

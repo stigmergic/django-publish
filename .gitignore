@@ -8,3 +8,7 @@
 *.pyc
 *.swp
 *.db
+
+# Pycharm
+.idea*
+.pycharm-bash
