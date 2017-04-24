@@ -261,6 +261,14 @@ class Publishable(models.Model):
     def _changes_need_publishing(self):
         return self.publish_state == Publishable.PUBLISH_CHANGED or not self.public
 
+    def _get_all_related_objects(self):
+        # The following mimics the deprecated Options.get_all_related_objects
+        return [
+            f for f in self._meta.get_fields()
+            if (f.one_to_many or f.one_to_one)
+               and f.auto_created and not f.concrete
+        ]
+
     def publish_changes(self, dry_run=False, all_published=None, parent=None):
         '''
         publish changes to the model - basically copy all of it's content to another copy in the
@@ -326,7 +334,7 @@ class Publishable(models.Model):
             m2m_manager = getattr(self, name)
             public_objs = list(m2m_manager.all())
 
-            field_object, model, direct, m2m = self._meta.get_field_by_name(name)
+            field_object = self._meta.get_field(name)
             through_model = self._get_through_model(field_object)
             if through_model:
                 # see if we can work out which reverse relationship this is
@@ -338,7 +346,7 @@ class Publishable(models.Model):
                         if reverse_field.column == m2m_reverse_name:
                             related_name = reverse_field.name
                             related_field = getattr(through_model, related_name).field
-                            reverse_name = related_field.related.get_accessor_name()
+                            reverse_name = related_field.rel.get_accessor_name()
                             reverse_fields_to_publish.append(reverse_name)
                             break
                     continue  # m2m via through table won't be dealt with here
@@ -355,8 +363,9 @@ class Publishable(models.Model):
                 public_m2m_manager.remove(*old_objs)
                 public_m2m_manager.add(*public_objs)
 
+        related_objects = self._get_all_related_objects()
         # one-to-many and one-to-one reverse relations
-        for obj in self._meta.get_all_related_objects():
+        for obj in related_objects:
             if issubclass(obj.model, Publishable):
                 name = obj.get_accessor_name()
                 if name in excluded_fields:
@@ -402,7 +411,8 @@ class Publishable(models.Model):
 
         self._pre_publish(dry_run, all_published, deleted=True)
 
-        for related in self._meta.get_all_related_objects():
+        related_objects = self._get_all_related_objects()
+        for related in related_objects:
             if not issubclass(related.model, Publishable):
                 continue
             name = related.get_accessor_name()
