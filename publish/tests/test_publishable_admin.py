@@ -1,7 +1,7 @@
 from django.conf import settings
 
 if getattr(settings, 'TESTING_PUBLISH', False):
-    from django.conf.urls import patterns, include
+    from django.conf.urls import include, url
     from django.contrib.admin.sites import AdminSite
     from django.contrib.auth.models import User
     from django.core.exceptions import PermissionDenied
@@ -42,10 +42,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.page_admin = PageAdmin(Page, self.admin_site)
 
             # override urls, so reverse works
-            settings.ROOT_URLCONF = patterns(
-                '',
-                ('^admin/', include(self.admin_site.urls)),
-            )
+            settings.ROOT_URLCONF = [
+                url('^admin/', include(self.admin_site.urls)),
+            ]
 
         def test_get_publish_status_display(self):
             page = Page.objects.create(slug="hhkkk", title="hjkhjkh")
@@ -246,10 +245,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.page_admin = PublishableAdmin(Page, self.admin_site)
             self.user = User.objects.create_user('test1', 'test@example.com', 'jkljkl')
             # override urls, so reverse works
-            settings.ROOT_URLCONF = patterns(
-                '',
+            settings.ROOT_URLCONF = [
                 ('^admin/', include(self.admin_site.urls)),
-            )
+            ]
 
         def test_publish_selected_confirm(self):
             pages = Page.objects.exclude(id=self.fp3.id)
@@ -369,10 +367,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.user = User.objects.create_user('test1', 'test@example.com', 'jkljkl')
 
             # override urls, so reverse works
-            settings.ROOT_URLCONF = patterns(
-                '',
-                ('^admin/', include(self.admin_site.urls)),
-            )
+            settings.ROOT_URLCONF = [
+                url('^admin/', include(self.admin_site.urls)),
+            ]
 
         def test_unpublish_selected_confirm(self):
             pages = Page.objects.draft()

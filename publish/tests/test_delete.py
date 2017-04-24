@@ -1,7 +1,7 @@
 from django.conf import settings
 
 if getattr(settings, 'TESTING_PUBLISH', False):
-    from django.conf.urls import patterns, include
+    from django.conf.urls import include, url
     from django.contrib.admin.sites import AdminSite
     from django.core.exceptions import PermissionDenied
     from django.test import TransactionTestCase
@@ -27,10 +27,9 @@ if getattr(settings, 'TESTING_PUBLISH', False):
             self.page_admin = PublishableAdmin(FlatPage, self.admin_site)
 
             # override urls, so reverse works
-            settings.ROOT_URLCONF = patterns(
-                '',
+            settings.ROOT_URLCONF = [
                 ('^admin/', include(self.admin_site.urls)),
-            )
+            ]
 
         def test_delete_selected_check_cannot_delete_public(self):
             # delete won't work (via admin) for public instances
