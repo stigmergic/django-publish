@@ -4,8 +4,8 @@ from django.db.models.base import ModelBase
 from django.db.models.fields.related import RelatedField
 from django.conf import settings
 
-from utils import NestedSet
-from signals import pre_publish, post_publish
+from .utils import NestedSet
+from .signals import pre_publish, post_publish
 
 # this takes some inspiration from the publisher stuff in
 # django-cms 2.0

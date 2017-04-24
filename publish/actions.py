@@ -12,8 +12,8 @@ from django.utils.text import capfirst
 from django.utils.translation import ugettext as _
 from django.contrib.admin.actions import delete_selected as django_delete_selected
 
-from models import Publishable
-from utils import NestedSet
+from .models import Publishable
+from .utils import NestedSet
 
 def _get_change_view_url(app_label, object_name, pk, levels_to_root):
     return '%s%s/%s/%s/' % ('../'*levels_to_root, app_label,
