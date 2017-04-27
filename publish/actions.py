@@ -5,7 +5,8 @@ from django.contrib.admin.utils import quote, model_ngettext, get_deleted_object
 from django.core.exceptions import PermissionDenied
 from django.db import router, transaction
 from django.shortcuts import render_to_response
-from django.template.response import TemplateResponse, RequestContext
+from django.template import RequestContext
+from django.template.response import TemplateResponse
 from django.utils.encoding import force_unicode
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
