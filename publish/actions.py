@@ -12,8 +12,8 @@ from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.utils.translation import ugettext as _
 
-from models import Publishable
-from utils import NestedSet
+from .models import Publishable
+from .utils import NestedSet
 
 
 def _get_change_view_url(app_label, object_name, pk, levels_to_root):
