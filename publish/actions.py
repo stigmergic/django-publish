@@ -5,7 +5,7 @@ from django.contrib.admin.utils import quote, model_ngettext, get_deleted_object
 from django.core.exceptions import PermissionDenied
 from django.db import router, transaction
 from django.shortcuts import render_to_response
-from django.template.response import TemplateResponse
+from django.template.response import TemplateResponse, RequestContext
 from django.utils.encoding import force_unicode
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
@@ -125,7 +125,7 @@ def publish_selected(modeladmin, request, queryset):
 
     admin_site = modeladmin.admin_site
 
-    context = {
+    context = RenderContext(request, {
         "title": _("Publish?"),
         "object_name": force_unicode(opts.verbose_name),
         "all_published": _convert_all_published_to_html(admin_site, all_published),
@@ -135,7 +135,7 @@ def publish_selected(modeladmin, request, queryset):
         "root_path": _root_path(admin_site),
         "app_label": app_label,
         'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
-    }
+    })
 
     # Display the confirmation page
     return render_to_response(modeladmin.publish_confirmation_template or [
