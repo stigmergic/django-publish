@@ -126,7 +126,7 @@ def publish_selected(modeladmin, request, queryset):
 
     admin_site = modeladmin.admin_site
 
-    context = RenderContext(request, {
+    context = RequestContext(request, {
         "title": _("Publish?"),
         "object_name": force_unicode(opts.verbose_name),
         "all_published": _convert_all_published_to_html(admin_site, all_published),
