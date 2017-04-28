@@ -65,7 +65,7 @@ class PublishableAdmin(admin.ModelAdmin):
     list_display = ['__unicode__', 'publish_state']
     list_filter = ['publish_state']
 
-    def queryset(self, request):
+    def get_queryset(self, request):
         # we want to show draft and deleted
         # objects in changelist in admin
         # so we can let the user select and publish them
