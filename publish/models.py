@@ -228,6 +228,8 @@ class Publishable(models.Model):
             raise UnpublishException("Cannot unpublish a public model - unpublish should be called from draft model")
         if self.pk is None:
             raise UnpublishException("Please save the model before unpublishing")
+        if self.publish_state == Publishable.PUBLISH_DELETE:
+            self.undelete()
 
         public_model = self.public
 
