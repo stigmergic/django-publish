@@ -175,6 +175,16 @@ There are two other fields that can be specified:
 
 Publish functions are useful if you need to run some additional action when publishing an object.  For example you may want copy a file to a public location or subtly modify a value as it gets copied.  A publish function is expected to work the same as the built-in ``setattr``, but may (and probably will) have other side-effects.
 
+
+Actions
+=====
+unpublished object <delete> immediate delete
+published object <delete> marked for delete
+marked for delete <publish> immediate delete
+marked for delete <unpublish> *error*
+
+
+
 Notes
 =====
 
