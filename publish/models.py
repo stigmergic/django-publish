@@ -4,8 +4,9 @@ from django.db.models.base import ModelBase
 from django.db.models.fields.related import RelatedField
 from django.db.models.query import QuerySet, Q
 
-from .utils import NestedSet
 from .signals import pre_publish, post_publish
+from .utils import NestedSet
+
 
 # this takes some inspiration from the publisher stuff in
 # django-cms 2.0
@@ -13,6 +14,11 @@ from .signals import pre_publish, post_publish
 #
 # but we want this to be a reusable/standalone app and have a few different needs
 #
+
+try:
+    stringtype = basestring
+except NameError:  # Python 3, basestring causes NameError
+    stringtype = str
 
 
 class PublishException(Exception):
@@ -255,7 +261,7 @@ class Publishable(models.Model):
         '''
         through = field_object.rel.through
         if through:
-            if isinstance(through, basestring):
+            if isinstance(through, stringtype):
                 return field_object.rel.through_model
             return through
         return None
